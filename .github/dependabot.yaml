@@ -9,8 +9,6 @@ updates:
   open-pull-requests-limit: 10
   ignore:
   - dependency-name: Microsoft.AspNetCore.*
-    versions:
-    - 5.x
+    versions: ["5.x"]
   - dependency-name: System.Net.Http.Json
-    versions:
-    - 5.x
+    versions: ["5.x"]
