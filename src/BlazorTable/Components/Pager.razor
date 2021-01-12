@@ -1,5 +1,4 @@
 @namespace BlazorTable
-@inject Microsoft.Extensions.Localization.IStringLocalizer<BlazorTable.Components.Localization> Localization
 
 @if (AlwaysShow || (Table.TotalPages > 1))
 {
@@ -7,45 +6,46 @@
         <ul class="pagination">
             @if (ShowPageSizes)
             {
-            <li class="page-item" title="Set Page Size">
-                <select class="form-control" value="@Table.PageSize" @onchange="SetPageSize">
-                    @foreach (int option in PageSizes)
-                    {
-                        <option value="@option">@option</option>
-                    }
-                </select>
-            </li>
-            }
-            @if (ShowPageNumber)
-            {
-                <li class="page-item disabled" @onclick="@(() => Table.FirstPage())" title="Page @(Table.PageNumber + 1)/@(Table.TotalPages)">
-                    <a class="page-link" href="#" tabindex="-1" aria-disabled="true">@(Table.PageNumber + 1)/@(Table.TotalPages)</a>
+                <li class="page-item" title="Set Page Size">
+                    <select class="form-control" value="@Table.PageSize" @onchange="SetPageSize">
+                        @foreach (int option in PageSizes)
+                        {
+                            <option value="@option">@option</option>
+                        }
+                    </select>
                 </li>
             }
+
             @if (ShowTotalCount)
             {
                 <li class="page-item disabled" @onclick="@(() => Table.FirstPage())" title="Total Items @Table.TotalCount">
                     <a class="page-link" href="#" tabindex="-1" aria-disabled="true">@Table.TotalCount</a>
                 </li>
             }
-            @if (ShowPageNumber || ShowTotalCount)
+            @*@if (ShowPageNumber || ShowTotalCount)
             {
                 <li aria-hidden="true" class="page-item disabled">
                     <a class="page-link" href="#" tabindex="-1" aria-disabled="true">&nbsp;</a>
                 </li>
-            }
+            }*@
 
-            <li class="page-item @(Table.PageNumber == 0 ? "disabled": "")" @onclick="@(() => Table.FirstPage())" title="@Localization["PagerFirst"]">
-                <a class="page-link" href="javascript:;" aria-disabled="@(Table.PageNumber == 0 ? "true": null)">@Localization["PagerFirst"]</a>
+            <li class="page-item @(Table.PageNumber == 0 ? "disabled": "")" @onclick="@(() => Table.FirstPage())" title="First">
+                <a class="page-link" href="javascript:;" aria-disabled="@(Table.PageNumber == 0 ? "true": null)">First</a>
             </li>
-            <li class="page-item @(Table.PageNumber == 0 ? "disabled": "")" @onclick="@(() => Table.PreviousPage())" title="@Localization["PagerPrevious"]">
-                <a class="page-link" href="javascript:;" aria-disabled="@(Table.PageNumber == 0 ? "true": null)">@Localization["PagerPrevious"]</a>
+            <li class="page-item @(Table.PageNumber == 0 ? "disabled": "")" @onclick="@(() => Table.PreviousPage())" title="Previous">
+                <a class="page-link" href="javascript:;" aria-disabled="@(Table.PageNumber == 0 ? "true": null)">Previous</a>
             </li>
-            <li class="page-item @(Table.PageNumber + 1 < Table.TotalPages ? "" : "disabled")" @onclick="@(() => Table.NextPage())" title="@Localization["PagerNext"]">
-                <a class="page-link" href="javascript:;" aria-disabled="@(Table.PageNumber + 1 < Table.TotalPages ? null: "true")">@Localization["PagerNext"]</a>
+            @if (ShowPageNumber)
+            {
+                <li class="page-item disabled" @onclick="@(() => Table.FirstPage())" title="Page @(Table.PageNumber + 1)/@(Table.TotalPages)">
+                    <a class="page-link" href="#" tabindex="-1" aria-disabled="true">@(Table.PageNumber + 1)/@(Table.TotalPages)</a>
+                </li>
+            }
+            <li class="page-item @(Table.PageNumber + 1 < Table.TotalPages ? "" : "disabled")" @onclick="@(() => Table.NextPage())" title="Next">
+                <a class="page-link" href="javascript:;" aria-disabled="@(Table.PageNumber + 1 < Table.TotalPages ? null: "true")">Next</a>
             </li>
-            <li class="page-item @(Table.PageNumber + 1 != Table.TotalPages ? "" : "disabled")" @onclick="@(() => Table.LastPage())" title="@Localization["PagerLast"]">
-                <a class="page-link" href="javascript:;" aria-disabled="@(Table.PageNumber + 1 != Table.TotalPages ? null : "true")">@Localization["PagerLast"]</a>
+            <li class="page-item @(Table.PageNumber + 1 != Table.TotalPages ? "" : "disabled")" @onclick="@(() => Table.LastPage())" title="Last">
+                <a class="page-link" href="javascript:;" aria-disabled="@(Table.PageNumber + 1 != Table.TotalPages ? null : "true")">Last</a>
             </li>
         </ul>
     </div>

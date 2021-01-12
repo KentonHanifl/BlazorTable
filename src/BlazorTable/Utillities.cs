@@ -1,4 +1,5 @@
 ﻿using LinqKit;
+using Microsoft.JSInterop;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -6,11 +7,23 @@ using System.Globalization;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Threading.Tasks;
 
 namespace BlazorTable
 {
-    internal static class Utilities
+    public static class Utilities
     {
+        public static async Task<bool> IsAlreadyShown(IJSRuntime JSRuntime)
+        {
+            return await JSRuntime.InvokeAsync<bool>("IsPopoversShown");
+        }
+
+        //public static async Task ShowPopover(IJSRuntime JSRuntime)
+        //{
+        //    await JSRuntime.InvokeVoidAsync("ShowPopover");
+        //}
+
+
         /// <summary>
         /// Calculates Sum or Average of a column base on given field name.
         /// </summary>
@@ -185,49 +198,48 @@ namespace BlazorTable
         /// Recursively walks up the tree and adds null checks
         /// </summary>
         /// <param name="expression"></param>
-        /// <param name="skipFinalMember"></param>
         /// <returns></returns>
-        public static BinaryExpression CreateNullChecks(this Expression expression, bool skipFinalMember = false)
+        public static Expression<Func<T, bool>> AddNullChecks<T>(this Expression<Func<T, bool>> expression)
         {
-            var parents = new Stack<BinaryExpression>();
+            var parents = new Queue<MemberExpression>();
+            Expression<Func<T, bool>> tempExpression = expression;
 
-            BinaryExpression newExpression = null;
-
-            if (expression is UnaryExpression unary)
+            if (expression?.Body is BinaryExpression binary)
             {
-                expression = unary.Operand;
-            }
-
-            MemberExpression temp = expression as MemberExpression;
-
-            while (temp is MemberExpression member)
-            {
-                try
+                if (binary.Left is MemberExpression member)
                 {
-                    var nullCheck = Expression.NotEqual(temp, Expression.Constant(null));
-                    parents.Push(nullCheck);
+                    // From here we're looking at parents
+                    Recurse(member.Expression);
                 }
-                catch (InvalidOperationException){}
-
-                temp = member.Expression as MemberExpression;
+                else if (expression?.Body is BinaryExpression binary2)
+                {
+                    if (binary2.Left is BinaryExpression binary3 && binary3.Left is MemberExpression member2)
+                    {
+                        // From here we're looking at parents
+                        Recurse(member2.Expression);
+                    }
+                }
             }
 
             while (parents.Count > 0)
             {
-                if (skipFinalMember && parents.Count == 1 && newExpression != null)
-                    break;
-                else if (newExpression == null)
-                    newExpression = parents.Pop();
-                else
-                    newExpression = Expression.AndAlso(newExpression, parents.Pop());
+                var nullCheck = Expression.NotEqual(parents.Dequeue(), Expression.Constant(null));
+
+                var newQuery = Expression.Lambda<Func<T, bool>>(nullCheck, expression.Parameters);
+
+                tempExpression = newQuery.And(tempExpression);
             }
 
-            if (newExpression == null)
+            return tempExpression;
+
+            void Recurse(object expression)
             {
-                return Expression.Equal(Expression.Constant(true), Expression.Constant(true));
+                if (expression is MemberExpression member)
+                {
+                    parents.Enqueue(member);
+                    Recurse(member.Expression);
+                }
             }
-
-            return newExpression;
         }
     }
 }

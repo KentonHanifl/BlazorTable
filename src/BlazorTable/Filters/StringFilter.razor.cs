@@ -1,6 +1,7 @@
-﻿using BlazorTable.Components;
-using Microsoft.AspNetCore.Components;
+﻿using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.Logging;
 using System;
+using System.ComponentModel;
 using System.Linq.Expressions;
 
 namespace BlazorTable
@@ -9,9 +10,6 @@ namespace BlazorTable
     {
         [CascadingParameter(Name = "Column")]
         public IColumn<TableItem> Column { get; set; }
-
-        [Inject]
-        Microsoft.Extensions.Localization.IStringLocalizer<BlazorTable.Components.Localization> Localization { get; set; }
 
         private StringCondition Condition { get; set; }
 
@@ -99,10 +97,12 @@ namespace BlazorTable
                 StringCondition.Contains =>
                     Expression.Lambda<Func<TableItem, bool>>(
                         Expression.AndAlso(
-                            Column.Field.Body.CreateNullChecks(),
+                            Expression.NotEqual(Column.Field.Body, Expression.Constant(null)),
                             Expression.GreaterThanOrEqual(
                                 Expression.Call(
+                                    #region Kenton
                                     Expression.Call(Column.Field.Body, "ToString", Type.EmptyTypes),
+                                    #endregion
                                     typeof(string).GetMethod(nameof(string.IndexOf), new[] { typeof(string), typeof(StringComparison) }),
                                     new[] { Expression.Constant(FilterText), Expression.Constant(StringComparison.OrdinalIgnoreCase) }),
                                 Expression.Constant(0))),
@@ -111,10 +111,12 @@ namespace BlazorTable
                 StringCondition.DoesNotContain =>
                     Expression.Lambda<Func<TableItem, bool>>(
                         Expression.AndAlso(
-                            Column.Field.Body.CreateNullChecks(),
+                            Expression.NotEqual(Column.Field.Body, Expression.Constant(null)),
                             Expression.LessThanOrEqual(
                                 Expression.Call(
+                                    #region Kenton
                                     Expression.Call(Column.Field.Body, "ToString", Type.EmptyTypes),
+                                    #endregion
                                     typeof(string).GetMethod(nameof(string.IndexOf), new[] { typeof(string), typeof(StringComparison) }),
                                     new[] { Expression.Constant(FilterText), Expression.Constant(StringComparison.OrdinalIgnoreCase) }),
                                 Expression.Constant(-1))),
@@ -123,9 +125,11 @@ namespace BlazorTable
                 StringCondition.StartsWith =>
                     Expression.Lambda<Func<TableItem, bool>>(
                         Expression.AndAlso(
-                            Column.Field.Body.CreateNullChecks(),
+                            Expression.NotEqual(Column.Field.Body, Expression.Constant(null)),
                             Expression.Call(
+                                #region Kenton
                                 Expression.Call(Column.Field.Body, "ToString", Type.EmptyTypes),
+                                #endregion
                                 typeof(string).GetMethod(nameof(string.StartsWith), new[] { typeof(string), typeof(StringComparison) }),
                                 new[] { Expression.Constant(FilterText), Expression.Constant(StringComparison.OrdinalIgnoreCase) })),
                         Column.Field.Parameters),
@@ -133,9 +137,11 @@ namespace BlazorTable
                 StringCondition.EndsWith =>
                     Expression.Lambda<Func<TableItem, bool>>(
                         Expression.AndAlso(
-                            Column.Field.Body.CreateNullChecks(),
+                            Expression.NotEqual(Column.Field.Body, Expression.Constant(null)),
                             Expression.Call(
+                                #region Kenton
                                 Expression.Call(Column.Field.Body, "ToString", Type.EmptyTypes),
+                                #endregion
                                 typeof(string).GetMethod(nameof(string.EndsWith), new[] { typeof(string), typeof(StringComparison) }),
                                 new[] { Expression.Constant(FilterText), Expression.Constant(StringComparison.OrdinalIgnoreCase) })),
                         Column.Field.Parameters),
@@ -143,9 +149,11 @@ namespace BlazorTable
                 StringCondition.IsEqualTo =>
                     Expression.Lambda<Func<TableItem, bool>>(
                         Expression.AndAlso(
-                            Column.Field.Body.CreateNullChecks(),
+                            Expression.NotEqual(Column.Field.Body, Expression.Constant(null)),
                             Expression.Call(
+                                #region Kenton
                                 Expression.Call(Column.Field.Body, "ToString", Type.EmptyTypes),
+                                #endregion
                                 typeof(string).GetMethod(nameof(string.Equals), new[] { typeof(string), typeof(StringComparison) }),
                                 new[] { Expression.Constant(FilterText), Expression.Constant(StringComparison.OrdinalIgnoreCase) })),
                         Column.Field.Parameters),
@@ -153,31 +161,29 @@ namespace BlazorTable
                 StringCondition.IsNotEqualTo =>
                     Expression.Lambda<Func<TableItem, bool>>(
                         Expression.AndAlso(
-                            Column.Field.Body.CreateNullChecks(),
+                            Expression.NotEqual(Column.Field.Body, Expression.Constant(null)),
                             Expression.Not(
                                 Expression.Call(
+                                    #region Kenton
                                     Expression.Call(Column.Field.Body, "ToString", Type.EmptyTypes),
+                                    #endregion 
                                     typeof(string).GetMethod(nameof(string.Equals), new[] { typeof(string), typeof(StringComparison) }),
                                     new[] { Expression.Constant(FilterText), Expression.Constant(StringComparison.OrdinalIgnoreCase) }))),
                         Column.Field.Parameters),
 
                 StringCondition.IsNullOrEmpty =>
                     Expression.Lambda<Func<TableItem, bool>>(
-                        Expression.AndAlso(
-                            Column.Field.Body.CreateNullChecks(true),
-                            Expression.Call(
+                        Expression.Call(
                                 typeof(string).GetMethod(nameof(string.IsNullOrEmpty), new[] { typeof(string) }),
-                            Expression.Call(Column.Field.Body, "ToString", Type.EmptyTypes))),
+                            Column.Field.Body),
                         Column.Field.Parameters),
 
                 StringCondition.IsNotNulOrEmpty =>
                     Expression.Lambda<Func<TableItem, bool>>(
-                        Expression.AndAlso(
-                            Column.Field.Body.CreateNullChecks(true),
-                            Expression.Not(
-                                Expression.Call(
+                        Expression.Not(
+                            Expression.Call(
                                     typeof(string).GetMethod(nameof(string.IsNullOrEmpty), new[] { typeof(string) }),
-                            Expression.Call(Column.Field.Body, "ToString", Type.EmptyTypes)))),
+                            Column.Field.Body)),
                         Column.Field.Parameters),
 
                 _ => throw new ArgumentException(Condition + " is not defined!"),
@@ -187,28 +193,28 @@ namespace BlazorTable
 
     public enum StringCondition
     {
-        [LocalizedDescription("StringConditionContains", typeof(Localization))]
+        [Description("Contains")]
         Contains,
 
-        [LocalizedDescription("StringConditionDoesNotContain", typeof(Localization))]
+        [Description("Does not contain")]
         DoesNotContain,
 
-        [LocalizedDescription("StringConditionStartsWith", typeof(Localization))]
+        [Description("Starts with")]
         StartsWith,
 
-        [LocalizedDescription("StringConditionEndsWith", typeof(Localization))]
+        [Description("Ends with")]
         EndsWith,
 
-        [LocalizedDescription("StringConditionIsEqualTo", typeof(Localization))]
+        [Description("Is equal to")]
         IsEqualTo,
 
-        [LocalizedDescription("StringConditionIsNotEqualTo", typeof(Localization))]
+        [Description("Is not equal to")]
         IsNotEqualTo,
 
-        [LocalizedDescription("StringConditionIsNullOrEmpty", typeof(Localization))]
+        [Description("Is null or empty")]
         IsNullOrEmpty,
 
-        [LocalizedDescription("StringConditionIsNotNullOrEmpty", typeof(Localization))]
+        [Description("Is not null or empty")]
         IsNotNulOrEmpty
     }
 }

@@ -1,6 +1,6 @@
-﻿using BlazorTable.Components;
-using Microsoft.AspNetCore.Components;
+﻿using Microsoft.AspNetCore.Components;
 using System;
+using System.ComponentModel;
 using System.Globalization;
 using System.Linq.Expressions;
 
@@ -10,9 +10,6 @@ namespace BlazorTable
     {
         [CascadingParameter(Name = "Column")]
         public IColumn<TableItem> Column { get; set; }
-
-        [Inject]
-        Microsoft.Extensions.Localization.IStringLocalizer<BlazorTable.Components.Localization> Localization { get; set; }
 
         private EnumCondition Condition { get; set; }
 
@@ -24,21 +21,37 @@ namespace BlazorTable
             {
                 Column.FilterControl = this;
 
-                if (Column.Filter?.Body is BinaryExpression binaryExpression
-                    && binaryExpression.Right is BinaryExpression logicalBinary
-                    && logicalBinary.Right is ConstantExpression constant)
+                if (Column.Filter?.Body is BinaryExpression binaryExpression)
                 {
-                    switch (binaryExpression.Right.NodeType)
+                    if (binaryExpression.NodeType == ExpressionType.AndAlso)
                     {
-                        case ExpressionType.Equal:
-                            Condition = constant.Value == null ? EnumCondition.IsNull : EnumCondition.IsEqualTo;
-                            break;
-                        case ExpressionType.NotEqual:
-                            Condition = constant.Value == null ? EnumCondition.IsNotNull : EnumCondition.IsNotEqualTo;
-                            break;
+                        switch (binaryExpression.Right.NodeType)
+                        {
+                            case ExpressionType.Equal:
+                                Condition = EnumCondition.IsEqualTo;
+                                break;
+                            case ExpressionType.NotEqual:
+                                Condition = EnumCondition.IsNotEqualTo;
+                                break;
+                        }
+                    }
+                    else
+                    {
+                        if (binaryExpression.NodeType == ExpressionType.Equal)
+                        {
+                            Condition = EnumCondition.IsNull;
+                        }
+                        else if (binaryExpression.NodeType == ExpressionType.NotEqual)
+                        {
+                            Condition = EnumCondition.IsNotNull;
+                        }
                     }
 
-                    FilterValue = constant.Value;
+                    if (binaryExpression.Right is BinaryExpression binaryExpression2
+                        && binaryExpression2.Right is ConstantExpression constantExpression)
+                    {
+                        FilterValue = constantExpression.Value;
+                    }
                 }
 
                 if (FilterValue == null)
@@ -55,51 +68,46 @@ namespace BlazorTable
                 EnumCondition.IsEqualTo =>
                     Expression.Lambda<Func<TableItem, bool>>(
                         Expression.AndAlso(
-                            Column.Field.Body.CreateNullChecks(),
+                            Expression.NotEqual(Column.Field.Body, Expression.Constant(null)),
                             Expression.Equal(
                                 Expression.Convert(Column.Field.Body, Column.Type.GetNonNullableType()),
                                 Expression.Constant(Convert.ChangeType(FilterValue, Column.Type.GetNonNullableType(), CultureInfo.InvariantCulture)))),
                         Column.Field.Parameters),
 
-                EnumCondition.IsNotEqualTo =>
-                    Expression.Lambda<Func<TableItem, bool>>(
-                        Expression.AndAlso(
-                            Column.Field.Body.CreateNullChecks(),
-                            Expression.NotEqual(
-                                Expression.Convert(Column.Field.Body, Column.Type.GetNonNullableType()),
-                                Expression.Constant(Convert.ChangeType(FilterValue, Column.Type.GetNonNullableType(), CultureInfo.InvariantCulture)))),
-                        Column.Field.Parameters),
+                EnumCondition.IsNotEqualTo => Expression.Lambda<Func<TableItem, bool>>(
+                    Expression.AndAlso(
+                        Expression.NotEqual(Column.Field.Body, Expression.Constant(null)),
+                        Expression.NotEqual(
+                            Expression.Convert(Column.Field.Body, Column.Type.GetNonNullableType()),
+                            Expression.Constant(Convert.ChangeType(FilterValue, Column.Type.GetNonNullableType(), CultureInfo.InvariantCulture)))),
+                    Column.Field.Parameters),
 
                 EnumCondition.IsNull =>
                     Expression.Lambda<Func<TableItem, bool>>(
-                        Expression.AndAlso(
-                            Column.Field.Body.CreateNullChecks(true),
-                            Expression.Equal(Column.Field.Body, Expression.Constant(null))),
-                        Column.Field.Parameters),
-
+                        Expression.Equal(Column.Field.Body, Expression.Constant(null)),
+                    Column.Field.Parameters),
+                
                 EnumCondition.IsNotNull =>
                     Expression.Lambda<Func<TableItem, bool>>(
-                        Expression.AndAlso(
-                            Column.Field.Body.CreateNullChecks(true),
-                            Expression.NotEqual(Column.Field.Body, Expression.Constant(null))),
-                        Column.Field.Parameters),
-
+                        Expression.NotEqual(Column.Field.Body, Expression.Constant(null)),
+                    Column.Field.Parameters),
+                
                 _ => throw new ArgumentException(Condition + " is not defined!"),
             };
         }
 
         public enum EnumCondition
         {
-            [LocalizedDescription("EnumConditionIsEqualTo", typeof(Localization))]
+            [Description("Is Equal To")]
             IsEqualTo,
 
-            [LocalizedDescription("EnumConditionIsNotEqualTo", typeof(Localization))]
+            [Description("Is Not Equal To")]
             IsNotEqualTo,
 
-            [LocalizedDescription("EnumConditionIsNull", typeof(Localization))]
+            [Description("Is null")]
             IsNull,
 
-            [LocalizedDescription("EnumConditionIsNotNull", typeof(Localization))]
+            [Description("Is not null")]
             IsNotNull
         }
     }

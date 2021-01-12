@@ -1,7 +1,7 @@
-﻿using BlazorTable.Components;
-using Microsoft.AspNetCore.Components;
+﻿using Microsoft.AspNetCore.Components;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
 using System.Linq.Expressions;
@@ -26,21 +26,37 @@ namespace BlazorTable
         {
             Column.FilterControl = this;
 
-            if (Column.Filter?.Body is BinaryExpression binaryExpression
-                && binaryExpression.Right is BinaryExpression logicalBinary
-                && logicalBinary.Right is ConstantExpression constant)
+            if (Column.Filter?.Body is BinaryExpression binaryExpression)
             {
-                switch (logicalBinary.NodeType)
+                if (binaryExpression.NodeType == ExpressionType.AndAlso)
                 {
-                    case ExpressionType.Equal:
-                            Condition = constant.Value == null ? CustomSelectCondition.IsNull : CustomSelectCondition.IsEqualTo;
+                    switch (binaryExpression.Right.NodeType)
+                    {
+                        case ExpressionType.Equal:
+                            Condition = CustomSelectCondition.IsEqualTo;
                             break;
-                    case ExpressionType.NotEqual:
-                            Condition = constant.Value == null ? CustomSelectCondition.IsNotNull : CustomSelectCondition.IsNotEqualTo;
+                        case ExpressionType.NotEqual:
+                            Condition = CustomSelectCondition.IsNotEqualTo;
                             break;
+                    }
+                }
+                else
+                {
+                    if (binaryExpression.NodeType == ExpressionType.Equal)
+                    {
+                        Condition = CustomSelectCondition.IsNull;
+                    }
+                    else if (binaryExpression.NodeType == ExpressionType.NotEqual)
+                    {
+                        Condition = CustomSelectCondition.IsNotNull;
+                    }
                 }
 
-                FilterValue = constant.Value;
+                if (binaryExpression.Right is BinaryExpression binaryExpression2
+                    && binaryExpression2.Right is ConstantExpression constantExpression)
+                {
+                    FilterValue = constantExpression.Value;
+                }
             }
         }
 
@@ -51,7 +67,7 @@ namespace BlazorTable
                 CustomSelectCondition.IsEqualTo =>
                     Expression.Lambda<Func<TableItem, bool>>(
                         Expression.AndAlso(
-                            Column.Field.Body.CreateNullChecks(),
+                            Expression.NotEqual(Column.Field.Body, Expression.Constant(null)),
                             Expression.Equal(
                                 Expression.Convert(Column.Field.Body, Column.Type.GetNonNullableType()),
                                 Expression.Constant(Convert.ChangeType(FilterValue, Column.Type.GetNonNullableType(), CultureInfo.InvariantCulture)))),
@@ -59,7 +75,7 @@ namespace BlazorTable
 
                 CustomSelectCondition.IsNotEqualTo => Expression.Lambda<Func<TableItem, bool>>(
                     Expression.AndAlso(
-                        Column.Field.Body.CreateNullChecks(),
+                        Expression.NotEqual(Column.Field.Body, Expression.Constant(null)),
                         Expression.NotEqual(
                             Expression.Convert(Column.Field.Body, Column.Type.GetNonNullableType()),
                             Expression.Constant(Convert.ChangeType(FilterValue, Column.Type.GetNonNullableType(), CultureInfo.InvariantCulture)))),
@@ -67,17 +83,13 @@ namespace BlazorTable
 
                 CustomSelectCondition.IsNull =>
                     Expression.Lambda<Func<TableItem, bool>>(
-                        Expression.AndAlso(
-                            Column.Field.Body.CreateNullChecks(true),
-                            Expression.Equal(Column.Field.Body, Expression.Constant(null))),
-                        Column.Field.Parameters),
+                        Expression.Equal(Column.Field.Body, Expression.Constant(null)),
+                    Column.Field.Parameters),
 
                 CustomSelectCondition.IsNotNull =>
                     Expression.Lambda<Func<TableItem, bool>>(
-                        Expression.AndAlso(
-                            Column.Field.Body.CreateNullChecks(true),
-                            Expression.NotEqual(Column.Field.Body, Expression.Constant(null))),
-                        Column.Field.Parameters),
+                        Expression.NotEqual(Column.Field.Body, Expression.Constant(null)),
+                    Column.Field.Parameters),
 
                 _ => throw new ArgumentException(Condition + " is not defined!"),
             };
@@ -97,16 +109,16 @@ namespace BlazorTable
 
         public enum CustomSelectCondition
         {
-            [LocalizedDescription("CustomSelectConditionIsEqualTo", typeof(Localization))]
+            [Description("Is Equal To")]
             IsEqualTo,
 
-            [LocalizedDescription("CustomSelectConditionIsNotEqualTo", typeof(Localization))]
+            [Description("Is Not Equal To")]
             IsNotEqualTo,
 
-            [LocalizedDescription("CustomSelectConditionIsNull", typeof(Localization))]
+            [Description("Is null")]
             IsNull,
 
-            [LocalizedDescription("CustomSelectConditionIsNotNull", typeof(Localization))]
+            [Description("Is not null")]
             IsNotNull
         }
     }

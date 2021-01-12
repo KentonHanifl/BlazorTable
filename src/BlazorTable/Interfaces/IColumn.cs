@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Components;
 using System;
 using System.Linq.Expressions;
+using System.Threading.Tasks;
 
 namespace BlazorTable
 {
@@ -36,11 +37,6 @@ namespace BlazorTable
         bool Filterable { get; set; }
 
         /// <summary>
-        /// Column can be hidden
-        /// </summary>
-        bool Hideable { get; set; }
-
-        /// <summary>
         /// Set the format for values if no template
         /// </summary>
         string Format { get; set; }
@@ -51,15 +47,9 @@ namespace BlazorTable
         bool FilterOpen { get; }
 
         /// <summary>
-        /// Column visibility
-        /// True if current column is visible else false.
-        /// </summary>
-        bool Visible { get; set; }
-
-        /// <summary>
         /// Opens/Closes the Filter Panel
         /// </summary>
-        void ToggleFilter();
+        Task ToggleFilter();
 
         /// <summary>
         /// Sort by this column
@@ -171,5 +161,16 @@ namespace BlazorTable
         /// <param name="item"></param>
         /// <returns></returns>
         string Render(TableItem item);
+
+        /// <summary>
+        /// Is the start date column in the two column date filter
+        /// </summary>
+        bool IsStartDateColumn { get; set; }
+
+        /// <summary>
+        /// Is the end date column in the two column date filter
+        /// </summary>
+        bool IsEndDateColumn { get; set; }
+        bool IsHidden { get; set; }
     }
 }

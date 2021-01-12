@@ -1,7 +1,7 @@
-﻿using BlazorTable.Components;
-using Microsoft.AspNetCore.Components;
+﻿using Microsoft.AspNetCore.Components;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq.Expressions;
 
 namespace BlazorTable
@@ -60,29 +60,25 @@ namespace BlazorTable
                 BooleanCondition.True =>
                     Expression.Lambda<Func<TableItem, bool>>(
                         Expression.AndAlso(
-                            Column.Field.Body.CreateNullChecks(),
+                            Expression.NotEqual(Column.Field.Body, Expression.Constant(null)),
                             Expression.IsTrue(Expression.Convert(Column.Field.Body, Column.Type.GetNonNullableType()))),
                         Column.Field.Parameters),
 
                 BooleanCondition.False =>
                     Expression.Lambda<Func<TableItem, bool>>(
                         Expression.AndAlso(
-                            Column.Field.Body.CreateNullChecks(),
+                            Expression.NotEqual(Column.Field.Body, Expression.Constant(null)),
                             Expression.IsFalse(Expression.Convert(Column.Field.Body, Column.Type.GetNonNullableType()))),
                             Column.Field.Parameters),
 
                 BooleanCondition.IsNull =>
                     Expression.Lambda<Func<TableItem, bool>>(
-                        Expression.AndAlso(
-                            Column.Field.Body.CreateNullChecks(true),
-                            Expression.Equal(Column.Field.Body, Expression.Constant(null))),
+                        Expression.Equal(Column.Field.Body, Expression.Constant(null)),
                         Column.Field.Parameters),
 
                 BooleanCondition.IsNotNull =>
                     Expression.Lambda<Func<TableItem, bool>>(
-                        Expression.AndAlso(
-                            Column.Field.Body.CreateNullChecks(true),
-                            Expression.NotEqual(Column.Field.Body, Expression.Constant(null))),
+                        Expression.NotEqual(Column.Field.Body, Expression.Constant(null)),
                         Column.Field.Parameters),
 
                 _ => null,
@@ -92,16 +88,16 @@ namespace BlazorTable
 
     public enum BooleanCondition
     {
-        [LocalizedDescription("BooleanConditionTrue", typeof(Localization))]
+        [Description("True")]
         True,
 
-        [LocalizedDescription("BooleanConditionFalse", typeof(Localization))]
+        [Description("False")]
         False,
 
-        [LocalizedDescription("BooleanConditionIsNull", typeof(Localization))]
+        [Description("Is null")]
         IsNull,
 
-        [LocalizedDescription("BooleanConditionIsNotNull", typeof(Localization))]
+        [Description("Is not null")]
         IsNotNull
     }
 }
