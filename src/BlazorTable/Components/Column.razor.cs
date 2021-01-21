@@ -1,10 +1,8 @@
 ﻿using Microsoft.AspNetCore.Components;
-using Microsoft.JSInterop;
 using System;
 using System.Globalization;
 using System.Linq;
 using System.Linq.Expressions;
-using System.Threading.Tasks;
 
 namespace BlazorTable
 {
@@ -45,29 +43,16 @@ namespace BlazorTable
         public bool Sortable { get; set; }
 
         /// <summary>
-        /// Is the column hidden
-        /// False by default
-        /// </summary>
-        [Parameter]
-        public bool IsHidden { get; set; } = false;
-
-        /// <summary>
         /// Column can be filtered
         /// </summary>
         [Parameter]
         public bool Filterable { get; set; }
 
         /// <summary>
-        /// Is the start date column in the two column date filter
+        /// Column can be hidden
         /// </summary>
         [Parameter]
-        public bool IsStartDateColumn { get; set; }
-
-        /// <summary>
-        /// Is the end date column in the two column date filter
-        /// </summary>
-        [Parameter]
-        public bool IsEndDateColumn { get; set; }
+        public bool Hideable { get; set; }
 
         /// <summary>
         /// Normal Item Template
@@ -163,6 +148,22 @@ namespace BlazorTable
         /// </summary>
         public bool FilterOpen { get; private set; }
 
+        private bool _visible = true;
+
+        /// <summary>
+        /// Column visibility
+        /// True if current column is visible else false.
+        /// </summary>
+        public bool Visible
+        {
+            get { return _visible; }
+            set 
+            {
+                _visible = value;
+                Table.Refresh();
+            }
+        }
+
         /// <summary>
         /// Column Data Type
         /// </summary>
@@ -178,9 +179,6 @@ namespace BlazorTable
         /// Currently applied Filter Control
         /// </summary>
         public IFilter<TableItem> FilterControl { get; set; }
-
-        [Inject]
-        protected IJSRuntime JSRuntime { get; set; }
 
         protected override void OnInitialized()
         {
@@ -213,42 +211,14 @@ namespace BlazorTable
             {
                 Type = Field?.GetPropertyMemberInfo().GetMemberUnderlyingType();
             }
-
-            if ((IsStartDateColumn || IsEndDateColumn) && (Type != typeof(DateTime) || Type != typeof(DateTime)))
-            {
-                throw new InvalidOperationException("The Start and End date columns' fields must both be Dates or DateTimes");
-            }
         }
 
         /// <summary>
         /// Opens/Closes the Filter Panel
         /// </summary>
-        public async Task ToggleFilter()
+        public void ToggleFilter()
         {
-            //catches the case where it's not shown but FilterOpen is lagging behind for whatever reason
-            if(!await Utilities.IsAlreadyShown(JSRuntime))
-            {
-                FilterOpen = false;
-            }
-
-            //toggles the internal value
             FilterOpen = !FilterOpen;
-
-            //force the popover to close 100% if it's not supposed to be open
-            if (!FilterOpen)
-            {
-                await JSRuntime.InvokeVoidAsync("HideAllPopovers");
-            }
-
-            //makes 100% sure that the popover IS shown if it's supposed to be
-            if (!await Utilities.IsAlreadyShown(JSRuntime) && FilterOpen)
-            {
-                //unsure of another way to have the popover correctly removed from the DOM and re-added...
-                FilterOpen = false;
-                Table.Refresh();
-                FilterOpen = true;
-            }
-
             Table.Refresh();
         }
 
@@ -278,7 +248,7 @@ namespace BlazorTable
         /// <returns>string results</returns>
         public string GetFooterValue()
         {
-            if (Table.ItemsQueryable != null && Aggregate.HasValue && Table.ShowFooter && !string.IsNullOrEmpty(Field.GetPropertyMemberInfo()?.Name))
+            if (Table.ItemsQueryable != null &&  Aggregate.HasValue && Table.ShowFooter && !string.IsNullOrEmpty(Field.GetPropertyMemberInfo()?.Name))
             {
                 return this.Aggregate.Value switch
                 {
@@ -303,7 +273,13 @@ namespace BlazorTable
             if (renderCompiled == null)
                 renderCompiled = Field.Compile();
 
-            var value = renderCompiled.Invoke(data);
+            object value = null;
+
+            try
+            {
+                value = renderCompiled.Invoke(data);
+            }
+            catch (NullReferenceException){}
 
             if (value == null) return string.Empty;
 

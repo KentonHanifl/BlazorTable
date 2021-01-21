@@ -29,12 +29,6 @@ namespace BlazorTable
         void RemoveColumn(IColumn<TableItem> column);
 
         /// <summary>
-        /// Removes a Column from the Table
-        /// </summary>
-        /// <param name="i"></param>
-        void RemoveColumn(int i);
-
-        /// <summary>
         /// IQueryable data source to display in the table
         /// </summary>
         IQueryable<TableItem> ItemsQueryable { get; set; }

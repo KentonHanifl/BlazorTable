@@ -98,20 +98,6 @@
         /// <param name="template"></param>
         void SetLoadingDataTemplate(LoadingDataTemplate template);
 
-        
-        /// <summary>
-        /// Set the LoadingDataTemplate for the table
-        /// </summary>
-        /// <param name="template"></param>
-        void SetDateFragment(DateFragment template);
-
-        
-        /// <summary>
-        /// Set the LoadingDataTemplate for the table
-        /// </summary>
-        /// <param name="template"></param>
-        void SetAddFragment(AddFragment template);
-
 
         /// <summary>
         /// Select Type: None, Single or Multiple

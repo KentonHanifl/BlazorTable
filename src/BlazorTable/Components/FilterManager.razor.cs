@@ -28,7 +28,6 @@ namespace BlazorTable
             {
                 Logger.LogInformation("Filter is null");
             }
-
         }
 
         private void ClearFilter()
@@ -40,7 +39,6 @@ namespace BlazorTable
                 Column.Filter = null;
                 Column.Table.Update();
             }
-
         }
     }
 }
