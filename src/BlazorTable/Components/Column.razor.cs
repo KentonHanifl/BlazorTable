@@ -70,6 +70,12 @@ namespace BlazorTable
         public bool IsEndDateColumn { get; set; }
 
         /// <summary>
+        /// Column can be hidden
+        /// </summary>
+        [Parameter]
+        public bool Hideable { get; set; }
+
+        /// <summary>
         /// Normal Item Template
         /// </summary>
         [Parameter]
@@ -162,6 +168,22 @@ namespace BlazorTable
         /// Filter Panel is open
         /// </summary>
         public bool FilterOpen { get; private set; }
+
+        private bool _visible = true;
+
+        /// <summary>
+        /// Column visibility
+        /// True if current column is visible else false.
+        /// </summary>
+        public bool Visible
+        {
+            get { return _visible; }
+            set 
+            {
+                _visible = value;
+                Table.Refresh();
+            }
+        }
 
         /// <summary>
         /// Column Data Type
@@ -303,7 +325,13 @@ namespace BlazorTable
             if (renderCompiled == null)
                 renderCompiled = Field.Compile();
 
-            var value = renderCompiled.Invoke(data);
+            object value = null;
+
+            try
+            {
+                value = renderCompiled.Invoke(data);
+            }
+            catch (NullReferenceException){}
 
             if (value == null) return string.Empty;
 

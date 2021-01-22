@@ -1,6 +1,7 @@
 ﻿@namespace BlazorTable
 @typeparam TableItem
 @using BlazorDateRangePicker
+@inject Microsoft.Extensions.Localization.IStringLocalizer<BlazorTable.Components.Localization> Localization
 
 @if (Columns.Any())
 {
@@ -244,11 +245,11 @@
                                 @if (_detailTemplate != null)
                                 {
                                     <td>
-                                        <a href="javascript:;" style="text-decoration: none" @onclick="@(() => { detailsViewOpen[locali] = !isOpen; StateHasChanged(); })" title="Details View" aria-expanded="@(isOpen ? "true" : "false")">
+                                        <a href="javascript:;" style="text-decoration: none" @onclick="@(() => { detailsViewOpen[locali] = !isOpen; StateHasChanged(); })" title="@Localization["TableDetailsView"]" aria-expanded="@(isOpen ? "true" : "false")">
                                             @if (isOpen)
-                                            {<span aria-hidden="true"><img src="/_content/BlazorTable/images/minus.png" /></span>}
+                                            {<span aria-hidden="true"><img src="_content/BlazorTable/images/minus.png" /></span>}
                                             else
-                                            {<span aria-hidden="true"><img src="/_content/BlazorTable/images/plus.png" /></span>}
+                                            {<span aria-hidden="true"><img src="_content/BlazorTable/images/plus.png" /></span>}
                                         </a>
                                     </td>
                                 }
@@ -266,6 +267,7 @@
                                                 else
                                                     @column.Template(item)
                                     </td>
+
                                 }
                             </tr>
 
@@ -304,7 +306,7 @@
                             else
                             {
                                 <div class="text-center">
-                                    Loading...
+                                    @Localization["TableLoading"]
                                 </div>
                             }
                         </td>
@@ -316,6 +318,10 @@
             {
                 <tfoot class="@TableFooterClass">
                     <tr>
+                        @if (_detailTemplate != null)
+                        {
+                            <td style="width: 1%"></td>
+                        }
                         @foreach (IColumn<TableItem> column in Columns)
                         {
                             <td @key="column" style="@(column.Align > 0 ? $"text-align: {column.Align};" : "")" class="@(column.ColumnFooterClass)">

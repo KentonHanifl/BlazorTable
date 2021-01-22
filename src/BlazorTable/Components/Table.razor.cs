@@ -133,6 +133,16 @@ namespace BlazorTable
         private ILogger<ITable<TableItem>> Logger { get; set; }
 
         /// <summary>
+        /// Ref to visibility menu icon for popover display
+        /// </summary>
+        private ElementReference VisibilityMenuIconRef { get; set; }
+
+        /// <summary>
+        /// True if visibility menu is open otherwise false
+        /// </summary>
+        private bool VisibilityMenuOpen { get; set; }
+
+        /// <summary>
         /// Collection of filtered items
         /// </summary>
         public IEnumerable<TableItem> FilteredItems { get; private set; }
@@ -193,13 +203,16 @@ namespace BlazorTable
                     ItemsQueryable = Items.AsQueryable();
                 }
 
+                foreach (var item in Columns)
+                {
+                    if (item.Filter != null)
+                    {
+                        ItemsQueryable = ItemsQueryable.Where(item.Filter);
+                    }
+                }
+
                 foreach (var column in Columns)
                 {
-                    if (column.Filter != null)
-                    {
-                        ItemsQueryable = ItemsQueryable.Where(column.Filter.AddNullChecks());
-                    }
-
                     if (column.IsStartDateColumn && TwoColumnDateFilterEnd != null)
                     {
                         var convertedEnd = DateTime.SpecifyKind(TwoColumnDateFilterEnd?.DateTime ?? throw new NullReferenceException("The end datetime should not be null."),
@@ -561,7 +574,7 @@ namespace BlazorTable
                 {
                     var newQuery = Expression.Lambda<Func<TableItem, bool>>(
                         Expression.AndAlso(
-                            Expression.NotEqual(column.Field.Body, Expression.Constant(null)),
+                            column.Field.Body.CreateNullChecks(),
                             Expression.GreaterThanOrEqual(
                                 Expression.Call(
                                     Expression.Call(column.Field.Body, "ToString", Type.EmptyTypes),
