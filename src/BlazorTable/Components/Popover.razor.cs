@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -64,18 +65,19 @@ namespace BlazorTable
             IsOpenChanged.InvokeAsync(false);
         }
 
-        protected string Classname => $"popover bs-popover-{Placement.ToDescriptionString()} {(IsOpen == true ? "show" : string.Empty)}";
+        protected string Classname => $"popover hide-next-click-popover bs-popover-{Placement.ToDescriptionString()} {(IsOpen == true ? "show" : string.Empty)}";
 
         protected ElementReference MyRef { get; set; }
 
         protected ElementReference Arrow { get; set; }
 
-        protected override void OnAfterRender(bool firstRender)
+        protected override async Task OnAfterRenderAsync(bool firstRender)
         {
             if (IsOpen ?? false)
             {
                 var placement = Placement.ToDescriptionString();
-                JSRuntime.InvokeVoidAsync("BlazorTablePopper", Reference, MyRef, Arrow, placement);
+                await JSRuntime.InvokeVoidAsync("BlazorTablePopper", Reference, MyRef, Arrow, placement);
+                await JSRuntime.InvokeVoidAsync("BindBodyHidePopover");
             }
         }
 

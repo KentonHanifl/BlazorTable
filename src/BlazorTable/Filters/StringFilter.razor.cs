@@ -100,7 +100,9 @@ namespace BlazorTable
                             Expression.NotEqual(Column.Field.Body, Expression.Constant(null)),
                             Expression.GreaterThanOrEqual(
                                 Expression.Call(
-                                    Column.Field.Body,
+                                    #region Kenton
+                                    Expression.Call(Column.Field.Body, "ToString", Type.EmptyTypes),
+                                    #endregion
                                     typeof(string).GetMethod(nameof(string.IndexOf), new[] { typeof(string), typeof(StringComparison) }),
                                     new[] { Expression.Constant(FilterText), Expression.Constant(StringComparison.OrdinalIgnoreCase) }),
                                 Expression.Constant(0))),
@@ -112,7 +114,9 @@ namespace BlazorTable
                             Expression.NotEqual(Column.Field.Body, Expression.Constant(null)),
                             Expression.LessThanOrEqual(
                                 Expression.Call(
-                                    Column.Field.Body,
+                                    #region Kenton
+                                    Expression.Call(Column.Field.Body, "ToString", Type.EmptyTypes),
+                                    #endregion
                                     typeof(string).GetMethod(nameof(string.IndexOf), new[] { typeof(string), typeof(StringComparison) }),
                                     new[] { Expression.Constant(FilterText), Expression.Constant(StringComparison.OrdinalIgnoreCase) }),
                                 Expression.Constant(-1))),
@@ -123,7 +127,9 @@ namespace BlazorTable
                         Expression.AndAlso(
                             Expression.NotEqual(Column.Field.Body, Expression.Constant(null)),
                             Expression.Call(
-                                Column.Field.Body,
+                                #region Kenton
+                                Expression.Call(Column.Field.Body, "ToString", Type.EmptyTypes),
+                                #endregion
                                 typeof(string).GetMethod(nameof(string.StartsWith), new[] { typeof(string), typeof(StringComparison) }),
                                 new[] { Expression.Constant(FilterText), Expression.Constant(StringComparison.OrdinalIgnoreCase) })),
                         Column.Field.Parameters),
@@ -133,7 +139,9 @@ namespace BlazorTable
                         Expression.AndAlso(
                             Expression.NotEqual(Column.Field.Body, Expression.Constant(null)),
                             Expression.Call(
-                                Column.Field.Body,
+                                #region Kenton
+                                Expression.Call(Column.Field.Body, "ToString", Type.EmptyTypes),
+                                #endregion
                                 typeof(string).GetMethod(nameof(string.EndsWith), new[] { typeof(string), typeof(StringComparison) }),
                                 new[] { Expression.Constant(FilterText), Expression.Constant(StringComparison.OrdinalIgnoreCase) })),
                         Column.Field.Parameters),
@@ -143,7 +151,9 @@ namespace BlazorTable
                         Expression.AndAlso(
                             Expression.NotEqual(Column.Field.Body, Expression.Constant(null)),
                             Expression.Call(
-                                Column.Field.Body,
+                                #region Kenton
+                                Expression.Call(Column.Field.Body, "ToString", Type.EmptyTypes),
+                                #endregion
                                 typeof(string).GetMethod(nameof(string.Equals), new[] { typeof(string), typeof(StringComparison) }),
                                 new[] { Expression.Constant(FilterText), Expression.Constant(StringComparison.OrdinalIgnoreCase) })),
                         Column.Field.Parameters),
@@ -154,7 +164,9 @@ namespace BlazorTable
                             Expression.NotEqual(Column.Field.Body, Expression.Constant(null)),
                             Expression.Not(
                                 Expression.Call(
-                                    Column.Field.Body,
+                                    #region Kenton
+                                    Expression.Call(Column.Field.Body, "ToString", Type.EmptyTypes),
+                                    #endregion 
                                     typeof(string).GetMethod(nameof(string.Equals), new[] { typeof(string), typeof(StringComparison) }),
                                     new[] { Expression.Constant(FilterText), Expression.Constant(StringComparison.OrdinalIgnoreCase) }))),
                         Column.Field.Parameters),

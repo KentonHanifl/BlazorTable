@@ -1,15 +1,26 @@
-﻿using LinqKit;
+﻿using BlazorDateRangePicker;
+using LinqKit;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Dynamic;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Threading.Tasks;
+using System.Threading;
+using Microsoft.JSInterop;
+using System.Text;
 
 namespace BlazorTable
 {
     public partial class Table<TableItem> : ITable<TableItem>
     {
+        [Inject]
+        public IJSRuntime JSRuntime { get; set; }
+
+        private CancellationTokenSource SearchCancellation { get; set; }
+
         private const int DEFAULT_PAGE_SIZE = 10;
 
         [Parameter(CaptureUnmatchedValues = true)]
@@ -78,6 +89,46 @@ namespace BlazorTable
         [Parameter]
         public string GlobalSearch { get; set; }
 
+        /// <summary>
+        /// An optional initial start date for the two column date filter.
+        /// </summary>
+        [Parameter]
+        public DateTimeOffset? InitialTwoColumnDateFilterStart { get; set; }
+        /// <summary>
+        /// The start filter date of the two column date filter.
+        /// </summary>
+        public DateTimeOffset? TwoColumnDateFilterStart { get; set; }
+        [Parameter]
+        public EventCallback<DateTimeOffset?> InitialTwoColumnDateFilterStartChanged { get; set; }
+
+        /// <summary>
+        /// An optional initial end date for the two column date filter.
+        /// </summary>
+        [Parameter]
+        public DateTimeOffset? InitialTwoColumnDateFilterEnd { get; set; }
+        /// <summary>
+        /// The end filter date of the two column date filter.
+        /// </summary>
+        public DateTimeOffset? TwoColumnDateFilterEnd { get; set; }
+        [Parameter]
+        public EventCallback<DateTimeOffset?> InitialTwoColumnDateFilterEndChanged { get; set; }
+
+        [Parameter]
+        public List<string> InitiallyHiddenColumnTitles { get; set; }
+
+        [Parameter]
+        public List<int> InitiallyHiddenColumnNumbers { get; set; }
+
+        private void UpdateInitialDates(DateTimeOffset? start, DateTimeOffset? end)
+        {
+            InitialTwoColumnDateFilterStart = start;
+            InitialTwoColumnDateFilterEnd = end;
+
+            InitialTwoColumnDateFilterStartChanged.InvokeAsync(InitialTwoColumnDateFilterStart);
+            InitialTwoColumnDateFilterEndChanged.InvokeAsync(InitialTwoColumnDateFilterEnd);
+        }
+
+
         [Inject]
         private ILogger<ITable<TableItem>> Logger { get; set; }
 
@@ -85,6 +136,7 @@ namespace BlazorTable
         /// Collection of filtered items
         /// </summary>
         public IEnumerable<TableItem> FilteredItems { get; private set; }
+        public IEnumerable<TableItem> NonPagedFilteredItems { get; private set; }
 
         /// <summary>
         /// List of All Available Columns
@@ -113,10 +165,26 @@ namespace BlazorTable
 
         protected override void OnParametersSet()
         {
+            TwoColumnDateFilterStart = InitialTwoColumnDateFilterStart;
+            TwoColumnDateFilterEnd = InitialTwoColumnDateFilterEnd;
             Update();
         }
 
-        private IEnumerable<TableItem> GetData()
+        protected override async Task OnAfterRenderAsync(bool firstRender)
+        {
+            if (firstRender)
+            {
+                Update();
+            }
+            if (generatingCsv)
+            {
+                await JSRuntime.InvokeAsync<string>("GetCsvText", CsvHolderElement);
+                generatingCsv = false;
+                Refresh();
+            }
+        }
+
+        private IEnumerable<TableItem> GetData(bool getAll = false)
         {
             if (Items != null || ItemsQueryable != null)
             {
@@ -125,11 +193,37 @@ namespace BlazorTable
                     ItemsQueryable = Items.AsQueryable();
                 }
 
-                foreach (var item in Columns)
+                foreach (var column in Columns)
                 {
-                    if (item.Filter != null)
+                    if (column.Filter != null)
                     {
-                        ItemsQueryable = ItemsQueryable.Where(item.Filter.AddNullChecks());
+                        ItemsQueryable = ItemsQueryable.Where(column.Filter.AddNullChecks());
+                    }
+
+                    if (column.IsStartDateColumn && TwoColumnDateFilterEnd != null)
+                    {
+                        var convertedEnd = DateTime.SpecifyKind(TwoColumnDateFilterEnd?.DateTime ?? throw new NullReferenceException("The end datetime should not be null."),
+                                                                    DateTimeKind.Utc);
+                        convertedEnd.AddDays(1).AddTicks(-1);
+                        ItemsQueryable = ItemsQueryable.Where(
+                            Expression.Lambda<Func<TableItem, bool>>(
+                                Expression.LessThanOrEqual(
+                                Expression.Convert(column.Field.Body, typeof(DateTime)),
+                                Expression.Constant(convertedEnd)
+                            ), column.Field.Parameters));
+                    }
+
+                    if (column.IsEndDateColumn && TwoColumnDateFilterStart != null)
+                    {
+                        var convertedStart = DateTime.SpecifyKind(TwoColumnDateFilterStart?.DateTime ?? throw new NullReferenceException("The start datetime should not be null."),
+                                                                DateTimeKind.Utc);
+
+                        ItemsQueryable = ItemsQueryable.Where(
+                            Expression.Lambda<Func<TableItem, bool>>(
+                                Expression.GreaterThanOrEqual(
+                                Expression.Convert(column.Field.Body, typeof(DateTime)),
+                                Expression.Constant(convertedStart)
+                            ), column.Field.Parameters));
                     }
                 }
 
@@ -162,7 +256,7 @@ namespace BlazorTable
                 }
 
                 // if PageSize is zero, we return all rows and no paging
-                if (PageSize <= 0)
+                if (PageSize <= 0 || getAll)
                     return ItemsQueryable.ToList();
                 else
                     return ItemsQueryable.Skip(PageNumber * PageSize).Take(PageSize).ToList();
@@ -179,11 +273,13 @@ namespace BlazorTable
         public void Update()
         {
             FilteredItems = GetData();
+            NonPagedFilteredItems = GetData(getAll: true);
             Refresh();
         }
 
         /// <summary>
         /// Adds a Column to the Table
+        /// Only call when adding column initially -- Kenton
         /// </summary>
         /// <param name="column"></param>
         public void AddColumn(IColumn<TableItem> column)
@@ -195,7 +291,21 @@ namespace BlazorTable
                 column.Type = column.Field?.GetPropertyMemberInfo().GetMemberUnderlyingType();
             }
 
+            int nextIndex = Columns.Count - 1;
+
+            //if index is in the initially hidden column numbers or the title is in the hidden columns, don't show the column
+            if ((InitiallyHiddenColumnNumbers != null && InitiallyHiddenColumnNumbers.Contains(nextIndex)) ||
+                (InitiallyHiddenColumnTitles != null && InitiallyHiddenColumnTitles.Contains(column.Title)))
+                column.IsHidden = true;
+
             Columns.Add(column);
+
+            Refresh();
+        }
+
+        public void ReaddColumn(IColumn<TableItem> column)
+        {
+            Columns.First(c => c == column).IsHidden = false;
             Refresh();
         }
 
@@ -205,8 +315,32 @@ namespace BlazorTable
         /// <param name="column"></param>
         public void RemoveColumn(IColumn<TableItem> column)
         {
-            Columns.Remove(column);
+            Columns.First(c => c.Title == column.Title).IsHidden = true;
             Refresh();
+        }
+
+        /// <summary>
+        /// Removes a column at a specific index
+        /// </summary>
+        /// <param name="i"></param>
+        public void RemoveColumn(int i)
+        {
+            Columns[i].IsHidden = true;
+            Refresh();
+        }
+
+        /// <summary>
+        /// Removes a column by the title string
+        /// </summary>
+        /// <param name="title"></param>
+        public void RemoveColumn(string title)
+        {
+            var colToRemove = Columns.FirstOrDefault(c => c.Title == title);
+            if (colToRemove != null)
+            {
+                colToRemove.IsHidden = true;
+                Refresh();
+            }
         }
 
         /// <summary>
@@ -451,6 +585,29 @@ namespace BlazorTable
             return expression;
         }
 
+        private async Task SearchWithDelay(ChangeEventArgs x)
+        {
+            //cancel previous search
+            SearchCancellation?.Cancel();
+
+            //make new cancellation token
+            SearchCancellation = new CancellationTokenSource();
+            var token = SearchCancellation.Token;
+
+            //wait for Xms, then search if not cancelled
+            //cannot await this task here. will not work with the cancellation token properly
+            _ = Task.Run(async () =>
+            {
+                await Task.Delay(200).ConfigureAwait(false);
+                if (!token.IsCancellationRequested)
+                {
+                    GlobalSearch = x.Value.ToString();
+                    //following line threw an error if not awaited in this way
+                    await InvokeAsync(Update).ConfigureAwait(false);
+                }
+            }, token).ConfigureAwait(false);
+        }
+
         /// <summary>
         /// Shows Search Bar above the table
         /// </summary>
@@ -464,6 +621,74 @@ namespace BlazorTable
         public bool ShowFooter { get; set; }
 
         /// <summary>
+        /// Show the two column date filter
+        /// </summary>
+        [Parameter]
+        public bool ShowTwoColumnDateFilter { get; set; }
+
+        /// <summary>
+        /// Show the two column date filter, with call back to get different data set
+        /// </summary>
+        [Parameter]
+        public bool ShowActiveTwoColumnDateFilter { get; set; }
+
+        /// <summary>
+        /// Show the column selector (hides/shows columns)
+        /// </summary>
+        [Parameter]
+        public bool ShowColumnSelector { get; set; }
+
+        private bool IsShowColumnSelector { get; set; } = false;
+
+
+        /// <summary>
+        /// KENTON All of this is for generating a CSV
+        /// </summary>
+
+        private ElementReference CsvHolderElement;
+        private bool generatingCsv = false;
+        //has to wait for render to happen, so actual saving happens in onAfterRender
+        private async Task SaveAsCsv()
+        {
+            generatingCsv = true;
+            Refresh();
+        }
+
+
+        /// <summary>
+        /// Set the template to use for date filter data
+        /// </summary>
+        /// <param name="dateFragment"></param>
+        public void SetDateFragment(DateFragment dateFragment)
+        {
+            _dateFragment = dateFragment?.ChildContent;
+        }
+
+        private RenderFragment _dateFragment;
+
+
+
+
+        /// <summary>
+        /// Show the generic add button
+        /// </summary>
+        [Parameter]
+        public bool ShowAdd { get; set; }
+
+        /// <summary>
+        /// Generic create button
+        /// </summary>
+        /// <param name="addFragment"></param>
+        public void SetAddFragment(AddFragment addFragment)
+        {
+            _addFragment = addFragment?.ChildContent;
+        }
+
+        private RenderFragment _addFragment;
+
+
+
+        /// <summary>
         /// Set Table Page Size
         /// </summary>
         /// <param name="pageSize"></param>
@@ -472,5 +697,44 @@ namespace BlazorTable
             PageSize = pageSize;
             Update();
         }
+
+        Dictionary<string, DateRange> DateRanges => new Dictionary<string, DateRange> {
+            { "Today", new DateRange
+                {
+                    Start = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day),
+                    End = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day).AddDays(1).AddTicks(-1)
+                }
+            } ,
+            { "Yesterday", new DateRange
+                {
+                    Start = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day).AddDays(-1),
+                    End = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day).AddTicks(-1)
+                }
+            } ,
+            { "Last 7 Days", new DateRange
+                {
+                    Start = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day).AddDays(-6),
+                    End = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day).AddDays(1).AddTicks(-1)
+                }
+            } ,
+            { "Last 30 Days", new DateRange
+                {
+                    Start = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day).AddDays(-29),
+                    End = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day).AddDays(1).AddTicks(-1)
+                }
+            } ,
+            { "This month", new DateRange
+                {
+                    Start = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1),
+                    End = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1).AddMonths(1).AddTicks(-1)
+                }
+            } ,
+            { "Previous month" , new DateRange
+                {
+                    Start = new DateTime(DateTime.Now.AddMonths(-1).Year, DateTime.Now.AddMonths(-1).Month, 1),
+                    End = new DateTime(DateTime.Now.AddMonths(-1).Year, DateTime.Now.AddMonths(-1).Month, 1).AddMonths(1).AddTicks(-1)
+                }
+            }
+        };
     }
 }

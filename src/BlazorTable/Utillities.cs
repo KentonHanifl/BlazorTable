@@ -1,4 +1,5 @@
 ﻿using LinqKit;
+using Microsoft.JSInterop;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -6,11 +7,23 @@ using System.Globalization;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Threading.Tasks;
 
 namespace BlazorTable
 {
-    internal static class Utilities
+    public static class Utilities
     {
+        public static async Task<bool> IsAlreadyShown(IJSRuntime JSRuntime)
+        {
+            return await JSRuntime.InvokeAsync<bool>("IsPopoversShown");
+        }
+
+        //public static async Task ShowPopover(IJSRuntime JSRuntime)
+        //{
+        //    await JSRuntime.InvokeVoidAsync("ShowPopover");
+        //}
+
+
         /// <summary>
         /// Calculates Sum or Average of a column base on given field name.
         /// </summary>

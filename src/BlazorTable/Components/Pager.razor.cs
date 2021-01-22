@@ -34,7 +34,7 @@ namespace BlazorTable
         /// Page size options
         /// </summary>
         [Parameter]
-        public List<int> PageSizes { get; set; } = new List<int>() { 15, 30, 60 };
+        public List<int> PageSizes { get; set; } = new List<int>() { 15, 30, 60, 90 };
 
         /// <summary>
         /// Show Page Size Options

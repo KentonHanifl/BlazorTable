@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Components;
 using System;
 using System.Linq.Expressions;
+using System.Threading.Tasks;
 
 namespace BlazorTable
 {
@@ -48,7 +49,7 @@ namespace BlazorTable
         /// <summary>
         /// Opens/Closes the Filter Panel
         /// </summary>
-        void ToggleFilter();
+        Task ToggleFilter();
 
         /// <summary>
         /// Sort by this column
@@ -160,5 +161,16 @@ namespace BlazorTable
         /// <param name="item"></param>
         /// <returns></returns>
         string Render(TableItem item);
+
+        /// <summary>
+        /// Is the start date column in the two column date filter
+        /// </summary>
+        bool IsStartDateColumn { get; set; }
+
+        /// <summary>
+        /// Is the end date column in the two column date filter
+        /// </summary>
+        bool IsEndDateColumn { get; set; }
+        bool IsHidden { get; set; }
     }
 }
